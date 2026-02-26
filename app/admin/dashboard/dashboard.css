@@ -1,0 +1,361 @@
+/* --- dashboard.css --- */
+
+:root {
+  --bg-app: #0a0f1c;
+  --bg-panel: #0f172a; /* slate-900 */
+  --bg-hover: #1e293b; /* slate-800 */
+  --border-color: #1e293b;
+  --text-main: #f1f5f9; /* slate-100 */
+  --text-muted: #94a3b8; /* slate-400 */
+  --blue-primary: #2563eb;
+  --blue-hover: #1d4ed8;
+  --danger: #ef4444;
+  --success: #22c55e;
+  --warning: #eab308;
+}
+
+/* --- Layout Principal --- */
+.dashboard-layout {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* --- Sidebar --- */
+.sidebar {
+  width: 256px; /* Lățimea fixă a sidebar-ului */
+  background-color: var(--bg-panel);
+  border-right: 1px solid var(--border-color);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  
+  /* REZOLVAREA: Îl fixăm permanent pe partea stângă */
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  z-index: 40; /* Ne asigurăm că stă deasupra restului conținutului */
+}
+
+/* --- Conținut Principal --- */
+.main-content {
+  flex: 1;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  
+  /* REZOLVAREA: Împingem conținutul spre dreapta ca să nu se suprapună cu sidebar-ul fixat */
+  margin-left: 256px; 
+  min-height: 100vh;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+
+  margin-bottom: 2.5rem;
+}
+
+.sidebar-logo {
+  background-color: var(--blue-primary);
+  padding: 0.375rem;
+  border-radius: 0.25rem;
+  color: white;
+}
+
+.sidebar-title {
+  font-size: 1.25rem;
+  font-weight: bold;
+  margin-left: 0.75rem;
+}
+
+.sidebar-title span {
+  color: var(--blue-primary);
+}
+
+.sidebar-nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.nav-item:hover {
+  background-color: var(--bg-hover);
+  color: white;
+}
+
+.nav-item.active {
+  background-color: var(--blue-primary);
+  color: white;
+}
+
+.logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  margin-top: auto;
+  padding-bottom: 1rem;
+  transition: color 0.2s;
+}
+
+.logout-btn:hover {
+  color: var(--danger);
+}
+
+/* --- Conținut Principal --- */
+.main-content {
+  flex: 1;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header & Search */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-shrink: 0;
+}
+
+.header h1 {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin: 0 0 0.25rem 0;
+}
+
+.header p {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.search-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 280px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 0.75rem;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  background-color: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem 0.5rem 2.5rem; /* Padding left face loc lupei */
+  color: white;
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: var(--blue-primary);
+}
+
+/* Stats Grid */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  flex-shrink: 0;
+}
+
+.stat-card {
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stat-title {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin: 0 0 0.25rem 0;
+}
+
+.stat-value {
+  font-size: 1.875rem;
+  font-weight: bold;
+  margin: 0;
+}
+
+.stat-icon-wrapper {
+  background-color: var(--bg-hover);
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-color);
+}
+
+/* --- Container Tabel & Scrollbar --- */
+.table-wrapper {
+  height: 380px; 
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  overflow-y: auto;
+  flex-shrink: 0;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+  
+  /* REZOLVAREA: Rezervă spațiu fizic pentru scrollbar ca să nu se suprapună */
+  scrollbar-gutter: stable;
+}
+
+/* Integrarea perfectă a Scrollbar-ului în designul tabelului */
+.table-wrapper::-webkit-scrollbar {
+  width: 12px; /* Lățime suficientă pentru a arăta bine */
+}
+
+.table-wrapper::-webkit-scrollbar-track {
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border-color); /* Trasează o linie de separare între tabel și scrollbar */
+  border-top-right-radius: 0.75rem; /* Urmărește rotunjimea containerului */
+  border-bottom-right-radius: 0.75rem;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+  background-color: var(--text-muted); /* Culoarea cursorului */
+  /* Marginile groase cu culoarea fundalului creează iluzia că scrollbar-ul plutește în interior */
+  border: 3px solid var(--bg-panel); 
+  border-radius: 10px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+  background-color: #cbd5e1; /* slate-300 */
+}
+
+/* Design Tabel */
+.data-table {
+  width: 100%;
+  text-align: left;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.data-table th {
+  background-color: var(--bg-hover);
+  color: var(--text-main);
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: bold;
+  padding: 1rem 1.5rem;
+  position: sticky; /* Ține header-ul fix la scroll */
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.data-table td {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Împingem conținutul ultimei coloane (Acțiuni) mai la stânga */
+.data-table th:last-child,
+.data-table td:last-child {
+  padding-right: 2rem; 
+}
+
+.data-table tbody tr:hover {
+  background-color: rgba(30, 41, 59, 0.5);
+}
+
+.table-text-main { color: white; font-weight: 500; }
+.table-text-sub { font-size: 0.75rem; margin-top: 0.25rem; }
+.ticket-id { color: #60a5fa; font-family: monospace; font-weight: bold; }
+
+/* Status Badges */
+.badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  border: 1px solid;
+  display: inline-block;
+}
+
+.badge-pending {
+  background-color: rgba(234, 179, 8, 0.1);
+  color: var(--warning);
+  border-color: rgba(234, 179, 8, 0.2);
+}
+
+.badge-progress {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: var(--blue-primary);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.badge-completed {
+  background-color: rgba(34, 197, 94, 0.1);
+  color: var(--success);
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+/* Butoane Acțiuni */
+.action-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.btn-action {
+  background: none;
+  border: none;
+  padding: 0.375rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-complete { color: var(--success); }
+.btn-complete:hover { background-color: rgba(34, 197, 94, 0.2); }
+
+.btn-delete { color: var(--danger); }
+.btn-delete:hover { background-color: rgba(239, 68, 68, 0.2); }
+
+.empty-state {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* Responsivitate de bază */
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .stats-grid { grid-template-columns: 1fr; }
+  .header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+}
