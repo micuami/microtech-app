@@ -20,6 +20,9 @@ interface Ticket {
 }
 
 export default function AdminDashboard() {
+  // Starea care blochează interfața până la confirmarea token-ului
+  const [isAuthorized, setIsAuthorized] = useState(false);
+
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
@@ -29,29 +32,41 @@ export default function AdminDashboard() {
   // Acesta va folosi automat link-ul de Render pe Vercel, sau Localhost pe PC-ul tău
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
-  // --- 1. VERIFICARE AUTENTIFICARE (Protecția paginii) ---
+  // --- VERIFICARE AUTENTIFICARE + PRELUARE DATE (Combinate) ---
   useEffect(() => {
     const token = localStorage.getItem('adminToken');
+    
     if (!token) {
-      // Dacă nu are token, îl trimitem forțat la pagina de login
-      router.push('/admin');
+      // Nu avem token, trimitem la login și oprim execuția
+      router.replace('/admin/login');
+      return; 
     }
-  }, [router]);
 
-  // --- 2. PRELUAREA DATELOR DE LA BACKEND LA MONTARE ---
-  useEffect(() => {
+    // Dacă avem token, pornim direct cererea către backend
     fetch(`${API_URL}/api/tickets`)
       .then(res => res.json())
       .then(data => {
-        // Presupunând că backend-ul returnează: { "tickets": [...] }
         setTickets(data.tickets || []);
+        // Ridicăm perdeaua asincron, abia DUPĂ ce au venit datele!
+        setIsAuthorized(true); 
         setLoading(false);
       })
       .catch(err => {
         console.error("Eroare la preluarea tichetelor:", err);
+        setIsAuthorized(true); // Ridicăm perdeaua și în caz de eroare, ca să nu rămână blocat
         setLoading(false);
       });
-  }, [API_URL]);
+  }, [router, API_URL]);
+
+  // Dacă utilizatorul nu este autorizat încă, returnăm un ecran negru temporar.
+  // Asta previne afișarea ("Flash"-ul) datelor secrete.
+  if (!isAuthorized) {
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: '#05080f', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b' }}>
+        Se verifică permisiunile...
+      </div>
+    );
+  }
 
   // Calcularea statisticilor
   const stats = {
@@ -100,7 +115,7 @@ export default function AdminDashboard() {
   const handleLogout = (e: React.MouseEvent) => {
     e.preventDefault();
     localStorage.removeItem('adminToken'); // Ștergem "cheia"
-    router.push('/admin'); // Trimitem adminul înapoi la poartă (Login)
+    router.replace('/admin/login'); // Trimitem adminul înapoi la poartă (Login)
   };
 
   // Filtrarea vizuală a tichetelor (bara de căutare)
@@ -125,8 +140,6 @@ export default function AdminDashboard() {
 
         <nav className="sidebar-nav">
             <NavItem active icon={<FileText size={18}/>} text="Programări" />
-            <NavItem icon={<Users size={18}/>} text="Clienți" />
-            <NavItem icon={<Calendar size={18}/>} text="Calendar" />
         </nav>
 
         {/* Butonul de Deconectare Securizat */}
@@ -194,7 +207,7 @@ export default function AdminDashboard() {
                                         <div className="table-text-sub">{ticket.phone}</div>
                                     </td>
                                     <td>
-                                        <div>{ticket.device}</div>
+                                        <div className="table-text-main">{ticket.device}</div>
                                         <div className="table-text-sub">{ticket.issue}</div>
                                     </td>
                                     <td>{ticket.date}</td>

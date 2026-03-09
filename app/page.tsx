@@ -1,13 +1,41 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Cpu, Wrench, Disc, Printer, Shield, HardDrive, 
-  Phone, Clock, Zap 
+  Phone, Clock, Zap, User as UserIcon, LogOut 
 } from 'lucide-react';
 
 export default function MicrotechHome() {
+  const [isClient, setIsClient] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userName, setUserName] = useState('');
+
+  // Verificăm dacă suntem logați abia după ce pagina se încarcă în browser
+  // Verificăm dacă suntem logați asincron pentru a evita "cascading renders"
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const token = localStorage.getItem('clientToken');
+      const name = localStorage.getItem('clientName');
+      
+      if (token) {
+        setIsLoggedIn(true);
+        if (name) setUserName(name);
+      }
+      setIsClient(true);
+    }, 0);
+
+    // Curățăm timer-ul dacă se demontează componenta
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('clientToken');
+    localStorage.removeItem('clientName');
+    setIsLoggedIn(false);
+  };
+
   return (
     <div className="min-h-screen bg-[#0a0f1c] text-slate-200 font-sans selection:bg-blue-500 selection:text-white">
       
@@ -28,19 +56,42 @@ export default function MicrotechHome() {
             <a href="#contact" className="hover:text-blue-400 transition-colors">Contact</a>
           </div>
 
-          <Link 
-            href="/diagnosis" // Link către pagina ta cu AI
-            className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2"
-          >
-            <Zap size={16} />
-            AI DIAGNOSTIC
-          </Link>
+          <div className="flex items-center gap-4">
+            {/* Secțiunea Dinamică de Cont */}
+            {isClient && isLoggedIn ? (
+                <div className="hidden md:flex items-center gap-4 border-r border-slate-700 pr-4">
+                    <span className="text-sm text-slate-400">Salut, <span className="text-white">{userName.split(' ')[0]}</span></span>
+                    <Link href="/profile" className="flex items-center gap-2 text-sm font-bold text-white bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-lg transition-all">
+                        <UserIcon size={16} /> Profilul Meu
+                    </Link>
+                    <button onClick={handleLogout} title="Deconectare" className="text-slate-400 hover:text-red-400 transition-colors">
+                        <LogOut size={18} />
+                    </button>
+                </div>
+            ) : isClient && !isLoggedIn ? (
+                <div className="hidden md:flex items-center gap-4 border-r border-slate-700 pr-4">
+                    <Link href="/login" className="text-sm font-medium text-slate-300 hover:text-white transition-colors">
+                        Autentificare
+                    </Link>
+                    <Link href="/register" className="text-sm font-bold text-blue-400 bg-blue-600/10 border border-blue-500/20 hover:bg-blue-600/20 px-4 py-2 rounded-lg transition-all">
+                        Creare Cont
+                    </Link>
+                </div>
+            ) : null}
+
+            <Link 
+              href="/diagnosis" 
+              className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2"
+            >
+              <Zap size={16} />
+              <span className="hidden sm:inline">AI DIAGNOSTIC</span>
+            </Link>
+          </div>
         </div>
       </nav>
 
       {/* --- HERO SECTION --- */}
       <section className="relative py-20 px-6 overflow-hidden">
-        {/* Background Glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-blue-600/20 rounded-full blur-[120px] -z-10"></div>
 
         <div className="max-w-4xl mx-auto text-center">
@@ -78,8 +129,6 @@ export default function MicrotechHome() {
         </div>
       </section>
 
-      
-
       {/* --- SERVICES GRID --- */}
       <section id="services" className="py-20 px-6 bg-slate-900/50">
         <div className="max-w-7xl mx-auto">
@@ -89,49 +138,12 @@ export default function MicrotechHome() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            
-            {/* Service 1: Hardware */}
-            <ServiceCard 
-              icon={<Wrench className="text-blue-400" size={24} />}
-              title="Reparații Hardware"
-              desc="Diagnostice și înlocuire componente defecte (Sursă, Placă Video, RAM). Reparații pe placa de bază."
-            />
-
-            {/* Service 2: Windows */}
-            <ServiceCard 
-              icon={<Disc className="text-purple-400" size={24} />}
-              title="Instalare Software"
-              desc="Instalare Windows 10/11 cu licență, drivere actualizate și pachet de programe esențiale."
-            />
-
-            {/* Service 3: Tonere (Cerinta Ta) */}
-            <ServiceCard 
-              icon={<Printer className="text-cyan-400" size={24} />}
-              title="Reîncărcare Tonere"
-              desc="Serviciu rapid de reîncărcare cartușe și tonere pentru imprimante laser și inkjet. Calitate garantată."
-            />
-
-            {/* Service 4: Devirusare */}
-            <ServiceCard 
-              icon={<Shield className="text-green-400" size={24} />}
-              title="Devirusare & Securitate"
-              desc="Curățare completă de malware, spyware și instalare soluții antivirus performante."
-            />
-
-            {/* Service 5: Mentenanta */}
-            <ServiceCard 
-              icon={<Cpu className="text-amber-400" size={24} />}
-              title="Curățare & Mentenanță"
-              desc="Schimbare pastă termoconductoare, curățare praf profesională pentru a preveni supraîncălzirea."
-            />
-
-            {/* Service 6: Data Recovery */}
-            <ServiceCard 
-              icon={<HardDrive className="text-red-400" size={24} />}
-              title="Recuperare Date"
-              desc="Recuperăm date pierdute de pe HDD-uri defecte, SSD-uri sau stick-uri USB corupte."
-            />
-
+            <ServiceCard icon={<Wrench className="text-blue-400" size={24} />} title="Reparații Hardware" desc="Diagnostice și înlocuire componente defecte (Sursă, Placă Video, RAM). Reparații pe placa de bază." />
+            <ServiceCard icon={<Disc className="text-purple-400" size={24} />} title="Instalare Software" desc="Instalare Windows 10/11 cu licență, drivere actualizate și pachet de programe esențiale." />
+            <ServiceCard icon={<Printer className="text-cyan-400" size={24} />} title="Reîncărcare Tonere" desc="Serviciu rapid de reîncărcare cartușe și tonere pentru imprimante laser și inkjet. Calitate garantată." />
+            <ServiceCard icon={<Shield className="text-green-400" size={24} />} title="Devirusare & Securitate" desc="Curățare completă de malware, spyware și instalare soluții antivirus performante." />
+            <ServiceCard icon={<Cpu className="text-amber-400" size={24} />} title="Curățare & Mentenanță" desc="Schimbare pastă termoconductoare, curățare praf profesională pentru a preveni supraîncălzirea." />
+            <ServiceCard icon={<HardDrive className="text-red-400" size={24} />} title="Recuperare Date" desc="Recuperăm date pierdute de pe HDD-uri defecte, SSD-uri sau stick-uri USB corupte." />
           </div>
         </div>
       </section>
@@ -139,8 +151,6 @@ export default function MicrotechHome() {
       {/* --- FOOTER / CONTACT --- */}
       <footer id="contact" className="bg-[#05080f] pt-20 pb-10 px-6 border-t border-slate-800">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12 mb-16">
-          
-          {/* Brand */}
           <div>
             <div className="flex items-center gap-2 mb-6">
                 <div className="bg-blue-600 p-1.5 rounded">
@@ -151,46 +161,30 @@ export default function MicrotechHome() {
                 </span>
             </div>
             <p className="text-slate-400 text-sm leading-relaxed">
-                Partenerul tău de încredere pentru orice problemă IT. 
-                Suntem dedicați calității și transparenței în reparații.
+                Partenerul tău de încredere pentru orice problemă IT. Suntem dedicați calității și transparenței în reparații.
             </p>
           </div>
-
-          {/* Contact Info */}
           <div>
             <h3 className="text-white font-bold mb-6">Contact</h3>
             <ul className="space-y-4 text-sm text-slate-400">
-                <li className="flex items-center gap-3">
-                    <Phone className="text-blue-500 shrink-0" size={18} />
-                    <span>07xx.xxx.xxx</span>
-                </li>
-                <li className="flex items-center gap-3">
-                    <Clock className="text-blue-500 shrink-0" size={18} />
-                    <span>Luni - Vineri: 09:00 - 18:00</span>
-                </li>
+                <li className="flex items-center gap-3"><Phone className="text-blue-500 shrink-0" size={18} /><span>07xx.xxx.xxx</span></li>
+                <li className="flex items-center gap-3"><Clock className="text-blue-500 shrink-0" size={18} /><span>Luni - Vineri: 09:00 - 18:00</span></li>
             </ul>
           </div>
-
-          {/* Quick Links */}
           <div>
              <h3 className="text-white font-bold mb-6">Link-uri Utile</h3>
              <ul className="space-y-2 text-sm text-slate-400">
                 <li><Link href="/diagnosis" className="text-blue-400 hover:text-blue-300 transition-colors font-bold">AI Diagnostic Tool</Link></li>
              </ul>
           </div>
-
         </div>
-        
         <div className="text-center border-t border-slate-800 pt-8 text-xs text-slate-500">
             &copy; {new Date().getFullYear()} Microtech Service. Toate drepturile rezervate.
         </div>
       </footer>
-
     </div>
   );
 }
-
-// --- SUB-COMPONENTS ---
 
 function ServiceCard({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
     return (

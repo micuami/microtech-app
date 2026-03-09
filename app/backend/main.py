@@ -1,17 +1,23 @@
 import os
 import json
+import random
+import jwt # type: ignore
 from typing import List, Optional
-from fastapi import FastAPI, HTTPException
+from datetime import datetime, timedelta
+from fastapi import FastAPI, HTTPException, Depends, Header # type: ignore
 from pydantic import BaseModel
-from groq import Groq
-from dotenv import load_dotenv
-from fastapi.middleware.cors import CORSMiddleware
+from groq import Groq # type: ignore
+from fastapi.middleware.cors import CORSMiddleware # type: ignore
+from sqlalchemy.orm import Session
+from passlib.context import CryptContext # type: ignore
 
-load_dotenv()
+from config import settings
+from models import SessionLocal, engine, Base, Ticket, User
 
-app = FastAPI()
+Base.metadata.create_all(bind=engine)
 
-# Configurare CORS
+app = FastAPI(title="Microtech API", debug=settings.DEBUG)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -19,25 +25,50 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+client = Groq(api_key=settings.GROQ_API_KEY)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# --- Modele de Date ---
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# --- Funcții pentru Securitate / Token ---
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=7) # Logat pentru 7 zile
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
+
+def get_current_user(authorization: str = Header(None), db: Session = Depends(get_db)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Token lipsă")
+    token = authorization.split(" ")[1]
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        user_id: int = payload.get("user_id")
+        user = db.query(User).filter(User.id == user_id).first()
+        if user is None:
+            raise HTTPException(status_code=401, detail="Utilizator inexistent")
+        return user
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Token invalid")
+
+# --- Modele Pydantic ---
 class Message(BaseModel):
-    role: str  # "user" sau "assistant"
+    role: str
     content: str
 
 class ChatRequest(BaseModel):
-    messages: List[Message] # Primim tot istoricul conversației
+    messages: List[Message]
 
 class AnalysisResponse(BaseModel):
-    status: str       # "question" (dacă mai vrea detalii) SAU "solution" (dacă știe rezolvarea)
-    content: str      # Textul întrebării sau pașii soluției
-    confidence: int   # Cât de sigur e AI-ul (0-100)
-    thought_process: Optional[str] = None # (Opțional) Să vedem cum gândește
-
-# ==========================================
-# MODELE PENTRU ADMIN DASHBOARD & LOGIN
-# ==========================================
+    status: str
+    content: str
+    confidence: int
+    thought_process: Optional[str] = None
 
 class AdminLoginRequest(BaseModel):
     password: str
@@ -45,100 +76,142 @@ class AdminLoginRequest(BaseModel):
 class TicketUpdateStatus(BaseModel):
     status: str
 
-# Bază de date "falsă" în memorie (până vei adăuga un DB real precum SQLite/PostgreSQL)
-TICKETS_DB = [
-  { "id": 'MT-8492', "name": 'Popescu Andrei', "device": 'Laptop Lenovo', "issue": 'Ecran negru', "date": '2024-03-15', "status": 'Pending', "phone": '0722123456' },
-  { "id": 'MT-1120', "name": 'Maria Ionescu', "device": 'PC Desktop', "issue": 'Zgomot ventilatoare', "date": '2024-03-14', "status": 'In Progress', "phone": '0733987654' },
-  { "id": 'MT-3391', "name": 'Firma Contab', "device": 'Imprimanta Brother', "issue": 'Toner', "date": '2024-03-13', "status": 'Completed', "phone": '0744555666' }
-]
+class TicketCreateRequest(BaseModel):
+    name: str
+    phone: str
+    device: str
+    date: str
+    issue: str
+    
+class UserRegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+
+class UserLoginRequest(BaseModel):
+    email: str
+    password: str
 
 # ==========================================
-# ENDPOINT-URI ADMIN
+# ENDPOINT-URI UTILIZATORI (NOU)
 # ==========================================
 
-# 1. Endpoint pentru Login
+@app.post("/api/auth/register")
+def register_user(req: UserRegisterRequest, db: Session = Depends(get_db)):
+    # Verificăm dacă email-ul există deja
+    if db.query(User).filter(User.email == req.email).first():
+        raise HTTPException(status_code=400, detail="Email-ul este deja folosit")
+    
+    hashed_password = pwd_context.hash(req.password)
+    new_user = User(name=req.name, email=req.email, password_hash=hashed_password)
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    token = create_access_token({"user_id": new_user.id})
+    return {"success": True, "token": token, "name": new_user.name}
+
+@app.post("/api/auth/login")
+def login_user(req: UserLoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == req.email).first()
+    if not user or not pwd_context.verify(req.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Email sau parolă greșite")
+    
+    token = create_access_token({"user_id": user.id})
+    return {"success": True, "token": token, "name": user.name}
+
+@app.get("/api/users/me/tickets")
+def get_my_tickets(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    # Returnăm doar tichetele care aparțin acestui utilizator
+    tickets = db.query(Ticket).filter(Ticket.user_id == current_user.id).order_by(Ticket.id.desc()).all()
+    return {"tickets": tickets}
+
+# ==========================================
+# ENDPOINT-URI ADMIN & TICHETE
+# ==========================================
+
+@app.get("/")
+def read_root():
+    return {"message": "API is running!", "mode": "Dev" if settings.DEBUG else "Prod"}
+
 @app.post("/api/admin/login")
 def admin_login(req: AdminLoginRequest):
-    # În producție, parola ar trebui luată din .env: os.getenv("ADMIN_PASSWORD")
-    if req.password == "admin123":
-        # Returnăm un "token" simplu de acces pentru a demonstra conceptul
+    # Tragem parola din .env (sau folosim un default super lung doar ca să nu dea eroare dacă lipsește)
+    correct_password = os.getenv("ADMIN_PASSWORD", "parola-default-lipsa-env-84920")
+    
+    if req.password.strip() == correct_password:
         return {"success": True, "token": "microtech-admin-token-777"}
     
     raise HTTPException(status_code=401, detail="Parolă incorectă")
 
-# 2. Endpoint pentru a aduce toate tichetele
 @app.get("/api/tickets")
-def get_all_tickets():
-    return {"tickets": TICKETS_DB}
+def get_all_tickets(db: Session = Depends(get_db)):
+    db_tickets = db.query(Ticket).order_by(Ticket.id.desc()).all()
+    tickets_list = [{"id": t.ticket_id, "name": t.name, "device": t.device, "issue": t.issue, "date": t.date, "status": t.status, "phone": t.phone} for t in db_tickets]
+    return {"tickets": tickets_list}
 
-# 3. Endpoint pentru a schimba statusul unui tichet
+@app.post("/api/tickets")
+def create_ticket(req: TicketCreateRequest, db: Session = Depends(get_db), authorization: str = Header(None)):
+    new_ticket_id = f"MT-{random.randint(1000, 9999)}"
+    while db.query(Ticket).filter(Ticket.ticket_id == new_ticket_id).first():
+        new_ticket_id = f"MT-{random.randint(1000, 9999)}"
+
+    user_id = None
+    # Dacă formularul trimite token (utilizatorul e logat), legăm tichetul de el!
+    if authorization and authorization.startswith("Bearer "):
+        try:
+            token = authorization.split(" ")[1]
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+            user_id = payload.get("user_id")
+        except:
+            pass # Dacă e invalid, îl lăsăm Guest
+
+    new_ticket = Ticket(
+        ticket_id=new_ticket_id, name=req.name, phone=req.phone,
+        device=req.device, date=req.date, issue=req.issue,
+        status="Pending", user_id=user_id
+    )
+    db.add(new_ticket)
+    db.commit()
+    db.refresh(new_ticket)
+    return {"success": True, "ticket_id": new_ticket.ticket_id}
+
 @app.patch("/api/tickets/{ticket_id}/status")
-def update_ticket_status(ticket_id: str, req: TicketUpdateStatus):
-    for ticket in TICKETS_DB:
-        if ticket["id"] == ticket_id:
-            ticket["status"] = req.status
-            return {"success": True, "ticket": ticket}
-    raise HTTPException(status_code=404, detail="Tichetul nu a fost găsit")
+def update_ticket_status(ticket_id: str, req: TicketUpdateStatus, db: Session = Depends(get_db)):
+    db_ticket = db.query(Ticket).filter(Ticket.ticket_id == ticket_id).first()
+    if not db_ticket: raise HTTPException(status_code=404)
+    db_ticket.status = req.status
+    db.commit()
+    return {"success": True}
 
-# 4. Endpoint pentru a șterge un tichet
 @app.delete("/api/tickets/{ticket_id}")
-def delete_ticket(ticket_id: str):
-    global TICKETS_DB
-    initial_length = len(TICKETS_DB)
-    TICKETS_DB = [t for t in TICKETS_DB if t["id"] != ticket_id]
-    
-    if len(TICKETS_DB) < initial_length:
-        return {"success": True, "message": "Tichet șters"}
-    
-    raise HTTPException(status_code=404, detail="Tichetul nu a fost găsit")
+def delete_ticket(ticket_id: str, db: Session = Depends(get_db)):
+    db_ticket = db.query(Ticket).filter(Ticket.ticket_id == ticket_id).first()
+    if not db_ticket: raise HTTPException(status_code=404)
+    db.delete(db_ticket)
+    db.commit()
+    return {"success": True}
 
-# --- LOGICA AI ---
+# ==========================================
+# LOGICA AI
+# ==========================================
 def get_it_diagnosis(messages):
-    # System Prompt-ul este cheia. Îl instruim să fie detectiv.
     system_prompt = """
     You are an expert Senior IT Support Technician. Your goal is to diagnose and solve PC hardware/software issues.
-    
-    RULES:
-    1. Analyze the user's problem.
-    2. If the description is vague (e.g., "My PC is slow"), DO NOT guess. Ask clarifying questions (e.g., "Windows or Mac?", "When did it start?", "Any blue screens?").
-    3. Ask ONE question at a time to not overwhelm the user.
-    4. ONLY provide a solution when you are >85% confident you know the root cause.
-    5. Output must be valid JSON.
-    
-    JSON FORMAT:
-    {
-        "status": "question" | "solution",
-        "content": "The text to show the user (question or solution steps)",
-        "confidence": 0-100,
-        "thought_process": "Brief reasoning here"
-    }
+    RULES: 1. Ask ONE clarifying question at a time. 2. Output valid JSON.
+    JSON FORMAT: {"status": "question" | "solution", "content": "Text", "confidence": 0-100}
     """
-
-    # Pregătim mesajele pentru Groq
     api_messages = [{"role": "system", "content": system_prompt}]
-    
-    # Adăugăm istoricul conversației
-    for msg in messages:
-        api_messages.append({"role": msg.role, "content": msg.content})
+    for msg in messages: api_messages.append({"role": msg.role, "content": msg.content})
 
     try:
         completion = client.chat.completions.create(
-            model="llama-3.3-70b-versatile", # Model rapid și deștept
-            messages=api_messages,
-            response_format={"type": "json_object"},
-            temperature=0.3 # Vrem precizie, nu creativitate
+            model="llama-3.3-70b-versatile", messages=api_messages, response_format={"type": "json_object"}, temperature=0.3
         )
         return json.loads(completion.choices[0].message.content)
-    except Exception as e:
-        print(f"Error: {e}")
-        return {
-            "status": "solution", 
-            "content": "Eroare la procesarea AI. Te rog încearcă din nou.", 
-            "confidence": 0
-        }
+    except:
+        return {"status": "solution", "content": "Eroare la procesarea AI.", "confidence": 0}
 
-# --- ENDPOINT ---
 @app.post("/diagnose", response_model=AnalysisResponse)
 def diagnose_issue(request: ChatRequest):
-    ai_response = get_it_diagnosis(request.messages)
-    return ai_response
+    return get_it_diagnosis(request.messages)
