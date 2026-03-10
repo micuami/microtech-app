@@ -3,17 +3,17 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, Loader2, ArrowLeft, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Loader2, ArrowLeft, AlertCircle, Info } from 'lucide-react';
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({ email: '', password: '' });
-  const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'forgot_password'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    setStatus('idle');
+    if (status !== 'forgot_password') setStatus('idle'); // Păstrăm mesajul de parolă uitată dacă e activ
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,11 +32,8 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok) {
-        // Salvăm token-ul pentru a recunoaște clientul
         localStorage.setItem('clientToken', data.token);
         localStorage.setItem('clientName', data.name);
-        
-        // Redirecționăm către pagina principală sau profil
         router.push('/');
       } else {
         setStatus('error');
@@ -47,6 +44,11 @@ export default function LoginPage() {
       setStatus('error');
       setErrorMessage('Eroare de conexiune la server.');
     }
+  };
+
+  const handleForgotPassword = (e: React.MouseEvent) => {
+      e.preventDefault();
+      setStatus('forgot_password');
   };
 
   return (
@@ -63,9 +65,20 @@ export default function LoginPage() {
             <h1 className="text-2xl font-bold text-white mb-2">Autentificare</h1>
             <p className="text-slate-400 text-sm mb-8">Bine ai revenit la Microtech!</p>
 
+            {/* Mesaj Eroare clasic */}
             {status === 'error' && (
-              <div className="mb-6 bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-lg text-sm flex items-center gap-2">
-                <AlertCircle size={16} /> {errorMessage}
+              <div className="mb-6 bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-lg text-sm flex items-center gap-2 animate-pulse">
+                <AlertCircle size={16} className="shrink-0" /> {errorMessage}
+              </div>
+            )}
+
+            {/* Mesaj Parolă Uitată */}
+            {status === 'forgot_password' && (
+              <div className="mb-6 bg-blue-500/10 border border-blue-500/30 text-blue-300 p-4 rounded-lg text-sm flex flex-col gap-2">
+                <div className="flex items-center gap-2 font-bold text-blue-400">
+                    <Info size={16} className="shrink-0" /> Cum resetezi parola?
+                </div>
+                <p>Din motive de securitate, te rugăm să ne contactezi telefonic la <strong className="text-white">0726 203 057</strong> sau prin email pentru a-ți reseta manual parola contului.</p>
               </div>
             )}
 
@@ -79,7 +92,17 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Parolă</label>
+                <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Parolă</label>
+                    {/* Butonul de Am uitat parola */}
+                    <button 
+                        type="button" 
+                        onClick={handleForgotPassword}
+                        className="text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors"
+                    >
+                        Ai uitat parola?
+                    </button>
+                </div>
                 <div className="relative">
                   <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                   <input type="password" name="password" required value={formData.password} onChange={handleChange} placeholder="••••••••" className="w-full bg-slate-800 border border-slate-700 text-white py-3 pl-10 pr-4 rounded-lg focus:outline-none focus:border-blue-500 transition-all" />
