@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
-  Cpu, Wrench, Disc, Printer, Shield, HardDrive, 
+  Cpu, Wrench, Disc, Printer, Shield, Globe, 
   Phone, Clock, Zap, User as UserIcon, LogOut 
 } from 'lucide-react';
 
@@ -12,7 +12,6 @@ export default function MicrotechHome() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userName, setUserName] = useState('');
 
-  // Verificăm dacă suntem logați abia după ce pagina se încarcă în browser
   // Verificăm dacă suntem logați asincron pentru a evita "cascading renders"
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -143,7 +142,7 @@ export default function MicrotechHome() {
             <ServiceCard icon={<Printer className="text-cyan-400" size={24} />} title="Reîncărcare Tonere" desc="Serviciu rapid de reîncărcare cartușe și tonere pentru imprimante laser și inkjet. Calitate garantată." />
             <ServiceCard icon={<Shield className="text-green-400" size={24} />} title="Devirusare & Securitate" desc="Curățare completă de malware, spyware și instalare soluții antivirus performante." />
             <ServiceCard icon={<Cpu className="text-amber-400" size={24} />} title="Curățare & Mentenanță" desc="Schimbare pastă termoconductoare, curățare praf profesională pentru a preveni supraîncălzirea." />
-            <ServiceCard icon={<HardDrive className="text-red-400" size={24} />} title="Recuperare Date" desc="Recuperăm date pierdute de pe HDD-uri defecte, SSD-uri sau stick-uri USB corupte." />
+            <ServiceCard icon={<Globe className="text-red-400" size={24} />} title="Creare Site-uri Web" desc="Dezvoltăm site-uri de prezentare, magazine online și aplicații web moderne, rapide și optimizate." />
           </div>
         </div>
       </section>
@@ -161,26 +160,29 @@ export default function MicrotechHome() {
                 </span>
             </div>
             <p className="text-slate-400 text-sm leading-relaxed">
-                Partenerul tău de încredere pentru orice problemă IT. Suntem dedicați calității și transparenței în reparații.
+                Partenerul tău de încredere pentru orice problemă IT.
             </p>
           </div>
           <div>
             <h3 className="text-white font-bold mb-6">Contact</h3>
             <ul className="space-y-4 text-sm text-slate-400">
-                <li className="flex items-center gap-3"><Phone className="text-blue-500 shrink-0" size={18} /><span>07xx.xxx.xxx</span></li>
+                <li className="flex items-center gap-3"><Phone className="text-blue-500 shrink-0" size={18} /><span>0726203057</span></li>
                 <li className="flex items-center gap-3"><Clock className="text-blue-500 shrink-0" size={18} /><span>Luni - Vineri: 09:00 - 18:00</span></li>
             </ul>
           </div>
           <div>
              <h3 className="text-white font-bold mb-6">Link-uri Utile</h3>
              <ul className="space-y-2 text-sm text-slate-400">
-                <li><Link href="/diagnosis" className="text-blue-400 hover:text-blue-300 transition-colors font-bold">AI Diagnostic Tool</Link></li>
+                <li><Link href="/termeni" className="text-blue-400 hover:text-blue-300 transition-colors">Termeni și Condiții</Link></li>
+                <li><Link href="/confidentialitate" className="text-blue-400 hover:text-blue-300 transition-colors">Politică de Confidențialitate & Cookie</Link></li>
              </ul>
           </div>
         </div>
-        <div className="text-center border-t border-slate-800 pt-8 text-xs text-slate-500">
-            &copy; {new Date().getFullYear()} Microtech Service. Toate drepturile rezervate.
+        
+        <div className="text-center border-t border-slate-800 pt-8 text-xs text-slate-500 flex flex-col items-center gap-3">
+            <p>&copy; {new Date().getFullYear()} Microtech Service. Toate drepturile rezervate.</p>
         </div>
+
       </footer>
     </div>
   );

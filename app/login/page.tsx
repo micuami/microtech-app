@@ -53,7 +53,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#0a0f1c] text-slate-200 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
         <Link href="/" className="inline-flex items-center gap-2 text-slate-400 hover:text-white mb-8 transition-colors text-sm font-bold">
-          <ArrowLeft size={16} /> Înapoi la Acasă
+          <ArrowLeft size={16} /> Înapoi
         </Link>
 
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl relative overflow-hidden">

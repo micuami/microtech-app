@@ -1,28 +1,50 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   ArrowLeft, Calendar, User, Phone, 
-  Cpu, FileText, CheckCircle, Loader2, Clock 
+  Cpu, FileText, CheckCircle, Loader2, Clock, Lock 
 } from 'lucide-react';
 
 export default function SchedulePage() {
   const [status, setStatus] = useState('idle'); // idle, loading, success, error
   const [ticketId, setTicketId] = useState('');
+  
+  // Stări noi pentru verificarea autentificării
+  const [isChecking, setIsChecking] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  // Adăugăm state-uri pentru fiecare câmp din formular
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
-    device: 'Laptop', // Valoarea default din select
+    device: 'Laptop', 
     date: '',
     issue: ''
   });
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
-  // Funcție generică pentru a actualiza state-ul când se tastează în input-uri
+  // Verificăm dacă utilizatorul este logat asincron
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const token = localStorage.getItem('clientToken');
+      const name = localStorage.getItem('clientName');
+
+      if (token) {
+        setIsLoggedIn(true);
+        // Dacă știm cum îl cheamă, îi completăm automat numele în formular!
+        if (name) {
+          setFormData(prev => ({ ...prev, name: name }));
+        }
+      }
+      
+      setIsChecking(false);
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -33,10 +55,8 @@ export default function SchedulePage() {
     setStatus('loading');
 
     try {
-      // Citim token-ul din browser
       const token = localStorage.getItem('clientToken');
       
-      // Pregătim headerele. Dacă avem token, îl adăugăm!
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
       };
@@ -45,7 +65,6 @@ export default function SchedulePage() {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      // Trimitem cererea POST către backend
       const res = await fetch(`${API_URL}/api/tickets`, {
         method: 'POST',
         headers: headers,
@@ -54,7 +73,7 @@ export default function SchedulePage() {
 
       if (res.ok) {
         const data = await res.json();
-        setTicketId(data.ticket_id); // Preluăm ID-ul generat de server (ex: MT-4512)
+        setTicketId(data.ticket_id);
         setStatus('success');
       } else {
         setStatus('error');
@@ -65,6 +84,48 @@ export default function SchedulePage() {
       setStatus('error');
     }
   };
+
+  // --- ECRAN DE ÎNCĂRCARE (cât verificăm token-ul) ---
+  if (isChecking) {
+    return (
+        <div className="min-h-screen bg-[#0a0f1c] flex items-center justify-center">
+            <Loader2 className="animate-spin text-blue-500" size={32} />
+        </div>
+    );
+  }
+
+  // --- ECRAN PENTRU UTILIZATORI NELOGAȚI ---
+  if (!isLoggedIn) {
+      return (
+        <div className="min-h-screen bg-[#0a0f1c] text-slate-200 font-sans flex flex-col items-center justify-center p-4 text-center">
+            <div className="bg-slate-900 border border-slate-800 p-8 md:p-12 rounded-2xl shadow-xl max-w-md w-full flex flex-col items-center relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-600/10 rounded-full blur-[40px]"></div>
+                
+                <div className="bg-slate-800/50 p-4 rounded-full mb-6 border border-slate-700">
+                    <Lock size={32} className="text-slate-400" />
+                </div>
+                
+                <h2 className="text-2xl font-bold text-white mb-2">Acces Restricționat</h2>
+                <p className="text-slate-400 mb-8">
+                    Pentru a putea înregistra o programare în service, trebuie să te autentifici în contul tău de client.
+                </p>
+                
+                <div className="flex flex-col w-full gap-3">
+                    <Link href="/login" className="bg-blue-600 hover:bg-blue-500 text-white w-full py-3 rounded-lg font-bold transition-colors">
+                        Autentificare
+                    </Link>
+                    <Link href="/register" className="bg-slate-800 hover:bg-slate-700 text-white w-full py-3 rounded-lg font-bold border border-slate-700 transition-colors">
+                        Creare Cont Nou
+                    </Link>
+                </div>
+                
+                <Link href="/" className="mt-6 flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-white transition-colors">
+                    <ArrowLeft size={16} /> Înapoi
+                </Link>
+            </div>
+        </div>
+      );
+  }
 
   // --- ECRAN DE SUCCES ---
   if (status === 'success') {
@@ -89,9 +150,12 @@ export default function SchedulePage() {
             </div>
 
             <Link 
-              href="/"
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold w-full transition-colors"
+              href="/profile"
+              className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold w-full transition-colors block mb-3"
             >
+              Vezi în Profilul Meu
+            </Link>
+            <Link href="/" className="text-sm font-bold text-slate-500 hover:text-white transition-colors">
               Înapoi la Home
             </Link>
           </div>
@@ -105,7 +169,6 @@ export default function SchedulePage() {
     <div className="min-h-screen bg-[#0a0f1c] text-slate-200 font-sans selection:bg-blue-500 selection:text-white p-4 md:p-8">
       <div className="max-w-3xl mx-auto">
         
-        {/* Header cu Buton Back */}
         <div className="flex items-center gap-4 mb-8">
           <Link 
             href="/" 
@@ -120,28 +183,23 @@ export default function SchedulePage() {
           </div>
         </div>
 
-        {/* Mesaj de eroare */}
         {status === 'error' && (
            <div className="mb-6 bg-red-500/10 border border-red-500/50 text-red-400 p-4 rounded-lg text-sm text-center">
              A apărut o eroare la salvarea programării. Te rugăm să încerci din nou sau să ne suni.
            </div>
         )}
 
-        {/* Formular */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 md:p-10 shadow-xl relative overflow-hidden">
           <form onSubmit={handleSubmit} className="relative z-10 space-y-6">
             
-            {/* Sectiunea 1: Date Personale */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              {/* Nume */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                   <User size={14} /> Nume Complet
                 </label>
                 <input 
                   type="text" 
-                  name="name" // Legătura cu state-ul
+                  name="name" 
                   value={formData.name}
                   onChange={handleChange}
                   required
@@ -150,14 +208,13 @@ export default function SchedulePage() {
                 />
               </div>
 
-              {/* Telefon */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                   <Phone size={14} /> Telefon
                 </label>
                 <input 
                   type="tel" 
-                  name="phone" // Legătura cu state-ul
+                  name="phone" 
                   value={formData.phone}
                   onChange={handleChange}
                   required
@@ -167,16 +224,13 @@ export default function SchedulePage() {
               </div>
             </div>
 
-            {/* Sectiunea 2: Detalii Tehnice */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              
-              {/* Dispozitiv */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                   <Cpu size={14} /> Tip Dispozitiv
                 </label>
                 <select 
-                  name="device" // Legătura cu state-ul
+                  name="device" 
                   value={formData.device}
                   onChange={handleChange}
                   className="w-full bg-slate-800 border border-slate-700 text-white p-3 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all appearance-none cursor-pointer"
@@ -189,14 +243,13 @@ export default function SchedulePage() {
                 </select>
               </div>
 
-              {/* Data Dorita */}
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                   <Calendar size={14} /> Data Preferată
                 </label>
                 <input 
                   type="date" 
-                  name="date" // Legătura cu state-ul
+                  name="date" 
                   value={formData.date}
                   onChange={handleChange}
                   required
@@ -205,13 +258,12 @@ export default function SchedulePage() {
               </div>
             </div>
 
-            {/* Descrierea Problemei */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                 <FileText size={14} /> Descrierea Problemei
               </label>
               <textarea 
-                name="issue" // Legătura cu state-ul
+                name="issue" 
                 value={formData.issue}
                 onChange={handleChange}
                 required
@@ -221,7 +273,6 @@ export default function SchedulePage() {
               ></textarea>
             </div>
 
-            {/* Info Box */}
             <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-lg flex gap-3 items-start">
               <Clock className="text-blue-400 shrink-0 mt-0.5" size={18} />
               <div className="text-sm text-slate-300">
@@ -229,7 +280,6 @@ export default function SchedulePage() {
               </div>
             </div>
 
-            {/* Buton Submit */}
             <button 
               type="submit"
               disabled={status === 'loading'}
