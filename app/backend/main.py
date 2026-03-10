@@ -1,15 +1,16 @@
 import os
 import json
 import random
-import jwt # type: ignore
+import time # Adăugat pentru a măsura timpul pentru Rate Limiting
+import jwt
 from typing import List, Optional
 from datetime import datetime, timedelta
-from fastapi import FastAPI, HTTPException, Depends, Header # type: ignore
+from fastapi import FastAPI, HTTPException, Depends, Header, Request # Adăugat Request
 from pydantic import BaseModel
-from groq import Groq # type: ignore
-from fastapi.middleware.cors import CORSMiddleware # type: ignore
+from groq import Groq
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from passlib.context import CryptContext # type: ignore
+from passlib.context import CryptContext
 
 from config import settings
 from models import SessionLocal, engine, Base, Ticket, User
@@ -28,6 +29,10 @@ app.add_middleware(
 client = Groq(api_key=settings.GROQ_API_KEY)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+# --- SISTEM SIMPLU DE RATE LIMITING (ANTISPAM) ---
+ip_request_counts = {}
+MAX_REQUESTS_PER_MINUTE = 5
+
 def get_db():
     db = SessionLocal()
     try:
@@ -38,7 +43,7 @@ def get_db():
 # --- Funcții pentru Securitate / Token ---
 def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(days=7) # Logat pentru 7 zile
+    expire = datetime.utcnow() + timedelta(days=7)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
 
@@ -93,12 +98,11 @@ class UserLoginRequest(BaseModel):
     password: str
 
 # ==========================================
-# ENDPOINT-URI UTILIZATORI (NOU)
+# ENDPOINT-URI UTILIZATORI 
 # ==========================================
 
 @app.post("/api/auth/register")
 def register_user(req: UserRegisterRequest, db: Session = Depends(get_db)):
-    # Verificăm dacă email-ul există deja
     if db.query(User).filter(User.email == req.email).first():
         raise HTTPException(status_code=400, detail="Email-ul este deja folosit")
     
@@ -122,7 +126,6 @@ def login_user(req: UserLoginRequest, db: Session = Depends(get_db)):
 
 @app.get("/api/users/me/tickets")
 def get_my_tickets(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    # Returnăm doar tichetele care aparțin acestui utilizator
     tickets = db.query(Ticket).filter(Ticket.user_id == current_user.id).order_by(Ticket.id.desc()).all()
     return {"tickets": tickets}
 
@@ -136,12 +139,9 @@ def read_root():
 
 @app.post("/api/admin/login")
 def admin_login(req: AdminLoginRequest):
-    # Tragem parola din .env (sau folosim un default super lung doar ca să nu dea eroare dacă lipsește)
     correct_password = os.getenv("ADMIN_PASSWORD", "parola-default-lipsa-env-84920")
-    
     if req.password.strip() == correct_password:
         return {"success": True, "token": "microtech-admin-token-777"}
-    
     raise HTTPException(status_code=401, detail="Parolă incorectă")
 
 @app.get("/api/tickets")
@@ -157,14 +157,13 @@ def create_ticket(req: TicketCreateRequest, db: Session = Depends(get_db), autho
         new_ticket_id = f"MT-{random.randint(1000, 9999)}"
 
     user_id = None
-    # Dacă formularul trimite token (utilizatorul e logat), legăm tichetul de el!
     if authorization and authorization.startswith("Bearer "):
         try:
             token = authorization.split(" ")[1]
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
             user_id = payload.get("user_id")
         except:
-            pass # Dacă e invalid, îl lăsăm Guest
+            pass 
 
     new_ticket = Ticket(
         ticket_id=new_ticket_id, name=req.name, phone=req.phone,
@@ -193,7 +192,7 @@ def delete_ticket(ticket_id: str, db: Session = Depends(get_db)):
     return {"success": True}
 
 # ==========================================
-# LOGICA AI
+# LOGICA AI & SECURITATE ANTISPAM
 # ==========================================
 def get_it_diagnosis(messages):
     system_prompt = """
@@ -213,5 +212,26 @@ def get_it_diagnosis(messages):
         return {"status": "solution", "content": "Eroare la procesarea AI.", "confidence": 0}
 
 @app.post("/diagnose", response_model=AnalysisResponse)
-def diagnose_issue(request: ChatRequest):
-    return get_it_diagnosis(request.messages)
+def diagnose_issue(req: ChatRequest, request: Request):
+    # 1. Obținem adresa IP a vizitatorului
+    client_ip = request.client.host
+    current_time = time.time()
+
+    # 2. Curățăm istoricul IP-ului de mesaje mai vechi de 60 de secunde
+    if client_ip in ip_request_counts:
+        ip_request_counts[client_ip] = [t for t in ip_request_counts[client_ip] if current_time - t < 60]
+    else:
+        ip_request_counts[client_ip] = []
+
+    # 3. Verificăm dacă a depășit limita (5 mesaje pe minut)
+    if len(ip_request_counts[client_ip]) >= MAX_REQUESTS_PER_MINUTE:
+        raise HTTPException(status_code=429, detail="Ai trimis prea multe mesaje. Te rugăm să aștepți un minut pentru a evita spam-ul.")
+
+    # 4. Validăm lungimea textului (extra siguranță pe backend)
+    if req.messages and len(req.messages[-1].content) > 500:
+        raise HTTPException(status_code=400, detail="Mesajul este prea lung. Limita este de 500 de caractere.")
+
+    # Dacă totul este OK, înregistrăm momentul mesajului și apelăm AI-ul
+    ip_request_counts[client_ip].append(current_time)
+    
+    return get_it_diagnosis(req.messages)
