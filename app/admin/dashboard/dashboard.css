@@ -26,37 +26,22 @@
 
 /* --- Sidebar --- */
 .sidebar {
-  width: 256px; /* Lățimea fixă a sidebar-ului */
+  width: 256px;
   background-color: var(--bg-panel);
   border-right: 1px solid var(--border-color);
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
-  
-  /* REZOLVAREA: Îl fixăm permanent pe partea stângă */
   position: fixed;
   top: 0;
   left: 0;
   height: 100vh;
-  z-index: 40; /* Ne asigurăm că stă deasupra restului conținutului */
-}
-
-/* --- Conținut Principal --- */
-.main-content {
-  flex: 1;
-  padding: 2rem;
-  display: flex;
-  flex-direction: column;
-  
-  /* REZOLVAREA: Împingem conținutul spre dreapta ca să nu se suprapună cu sidebar-ul fixat */
-  margin-left: 256px; 
-  min-height: 100vh;
+  z-index: 40;
 }
 
 .sidebar-header {
   display: flex;
   align-items: center;
-
   margin-bottom: 2.5rem;
 }
 
@@ -95,6 +80,7 @@
   font-size: 0.875rem;
   font-weight: 500;
   transition: all 0.2s;
+  white-space: nowrap; /* Ajută textul să nu se rupă pe mobil */
 }
 
 .nav-item:hover {
@@ -128,7 +114,9 @@
   padding: 2rem;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  margin-left: 256px; 
+  min-height: 100vh;
+  overflow: hidden; /* Previne scroll-ul accidental al întregii pagini în dreapta */
 }
 
 /* Header & Search */
@@ -171,7 +159,7 @@
   background-color: var(--bg-hover);
   border: 1px solid var(--border-color);
   border-radius: 0.5rem;
-  padding: 0.5rem 1rem 0.5rem 2.5rem; /* Padding left face loc lupei */
+  padding: 0.5rem 1rem 0.5rem 2.5rem;
   color: white;
   font-size: 0.875rem;
   outline: none;
@@ -221,44 +209,42 @@
 
 /* --- Container Tabel & Scrollbar --- */
 .table-wrapper {
-  height: 380px; 
+  /* Am scos height-ul fix ca să se muleze mai bine pe conținut, sau îl poți păstra dacă vrei tabelul tăiat */
+  max-height: 60vh; 
   background-color: var(--bg-panel);
   border: 1px solid var(--border-color);
   border-radius: 0.75rem;
   overflow-y: auto;
+  overflow-x: auto; /* Permite scroll orizontal pe mobil */
   flex-shrink: 0;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
-  
-  /* REZOLVAREA: Rezervă spațiu fizic pentru scrollbar ca să nu se suprapună */
   scrollbar-gutter: stable;
 }
 
-/* Integrarea perfectă a Scrollbar-ului în designul tabelului */
 .table-wrapper::-webkit-scrollbar {
-  width: 12px; /* Lățime suficientă pentru a arăta bine */
+  width: 10px;
+  height: 10px; /* Important pentru scrollbar-ul orizontal pe mobil */
 }
 
 .table-wrapper::-webkit-scrollbar-track {
   background: var(--bg-panel);
-  border-left: 1px solid var(--border-color); /* Trasează o linie de separare între tabel și scrollbar */
-  border-top-right-radius: 0.75rem; /* Urmărește rotunjimea containerului */
-  border-bottom-right-radius: 0.75rem;
+  border-radius: 0.75rem;
 }
 
 .table-wrapper::-webkit-scrollbar-thumb {
-  background-color: var(--text-muted); /* Culoarea cursorului */
-  /* Marginile groase cu culoarea fundalului creează iluzia că scrollbar-ul plutește în interior */
-  border: 3px solid var(--bg-panel); 
+  background-color: var(--text-muted);
+  border: 2px solid var(--bg-panel); 
   border-radius: 10px;
 }
 
 .table-wrapper::-webkit-scrollbar-thumb:hover {
-  background-color: #cbd5e1; /* slate-300 */
+  background-color: #cbd5e1;
 }
 
 /* Design Tabel */
 .data-table {
   width: 100%;
+  min-width: 800px; /* FORȚEAZĂ tabelul să nu se micșoreze peste această limită, activând scroll-ul */
   text-align: left;
   border-collapse: collapse;
   font-size: 0.875rem;
@@ -272,7 +258,7 @@
   font-size: 0.75rem;
   font-weight: bold;
   padding: 1rem 1.5rem;
-  position: sticky; /* Ține header-ul fix la scroll */
+  position: sticky;
   top: 0;
   z-index: 10;
   box-shadow: 0 1px 2px rgba(0,0,0,0.1);
@@ -281,12 +267,6 @@
 .data-table td {
   padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--border-color);
-}
-
-/* Împingem conținutul ultimei coloane (Acțiuni) mai la stânga */
-.data-table th:last-child,
-.data-table td:last-child {
-  padding-right: 2rem; 
 }
 
 .data-table tbody tr:hover {
@@ -305,6 +285,7 @@
   font-weight: bold;
   border: 1px solid;
   display: inline-block;
+  white-space: nowrap;
 }
 
 .badge-pending {
@@ -353,9 +334,79 @@
   color: var(--text-muted);
 }
 
-/* Responsivitate de bază */
+/* =========================================
+   RESPONSIVITATE PENTRU MOBIL 
+   ========================================= */
 @media (max-width: 768px) {
-  .sidebar { display: none; }
-  .stats-grid { grid-template-columns: 1fr; }
-  .header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+  /* Transformăm layout-ul pe verticală */
+  .dashboard-layout {
+    flex-direction: column;
+  }
+
+  /* Bara din stânga devine o bară orizontală sus */
+  .sidebar {
+    position: relative;
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem;
+    z-index: 10;
+  }
+
+  .sidebar-header {
+    margin-bottom: 1rem;
+    justify-content: space-between;
+  }
+
+  /* Transformăm meniul într-unul derulabil orizontal */
+  .sidebar-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    gap: 1rem;
+  }
+
+  .logout-btn {
+    padding-bottom: 0;
+    margin-top: 1rem;
+    justify-content: center;
+    background-color: rgba(239, 68, 68, 0.1);
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    color: var(--danger);
+  }
+
+  /* Resetăm distanța pentru conținutul principal */
+  .main-content {
+    margin-left: 0;
+    padding: 1rem;
+  }
+
+  /* Header stivuit pe mobil */
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .search-wrapper {
+    width: 100%;
+  }
+
+  .search-input {
+    width: 100%;
+  }
+
+  /* Cardurile de statistici una sub alta */
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  /* Containerul tabelului își ia scroll orizontal */
+  .table-wrapper {
+    max-height: 500px;
+    border-radius: 0.5rem;
+  }
 }
