@@ -74,7 +74,7 @@ export default function ProfilePage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
           <div>
             <Link href="/" className="inline-flex items-center gap-2 text-slate-400 hover:text-white mb-4 transition-colors text-sm font-bold">
-              <ArrowLeft size={16} /> Înapoi la Acasă
+              <ArrowLeft size={16} /> Înapoi
             </Link>
             <h1 className="text-3xl font-bold text-white flex items-center gap-3">
               <div className="bg-blue-600/20 p-2 rounded-full border border-blue-500/30">
